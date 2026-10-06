@@ -1,147 +1,38 @@
 package com.streak.app
-
 import android.Manifest
-import android.app.AlarmManager
-import android.app.AlertDialog
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
+import android.app.*
+import android.content.*
 import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.os.*
+import android.view.*
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
-import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
-class MainActivity : AppCompatActivity() {
-    private lateinit var prefs: android.content.SharedPreferences
-    private lateinit var daysText: TextView
-    private lateinit var checkButton: Button
-    private lateinit var bestText: TextView
-    private lateinit var totalText: TextView
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        prefs = getSharedPreferences("streak", MODE_PRIVATE)
-        if (!prefs.contains("start")) {
-            prefs.edit().putString("start", LocalDate.now().toString()).apply()
-        }
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 70, 48, 40)
-            gravity = Gravity.CENTER_HORIZONTAL
-        }
-        fun label(value: String, size: Float) = TextView(this).apply {
-            text = value
-            textSize = size
-            gravity = Gravity.CENTER
-        }
-
-        root.addView(label("STREAK", 18f))
-        root.addView(label("One day at a time.", 15f))
-        daysText = label("", 64f)
-        root.addView(daysText)
-        root.addView(label("DAYS FREE", 16f))
-
-        checkButton = Button(this).apply {
-            text = "✓  I stayed free today"
-            setOnClickListener { checkIn() }
-        }
-        root.addView(checkButton)
-
-        bestText = label("", 18f)
-        totalText = label("", 18f)
-        root.addView(bestText)
-        root.addView(totalText)
-        root.addView(label("\nMilestones  •  1  •  3  •  7  •  14  •  30  •  60  •  90  •  365", 16f))
-
-        root.addView(Button(this).apply {
-            text = "🔔 Daily reminder: 8:30 AM"
-            setOnClickListener {
-                schedule(this@MainActivity)
-                Toast.makeText(context, "Reminder set for 8:30 AM", Toast.LENGTH_SHORT).show()
-            }
-        })
-
-        root.addView(Button(this).apply {
-            text = "Reset streak"
-            setOnClickListener {
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Start a new streak?")
-                    .setMessage("Best streak and check-ins are kept.")
-                    .setNegativeButton("Cancel", null)
-                    .setPositiveButton("Reset") { _, _ -> resetStreak() }
-                    .show()
-            }
-        })
-
-        setContentView(root)
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 7)
-        }
-        schedule(this)
-        refresh()
-    }
-
-    private fun currentDays(): Int {
-        val start = prefs.getString("start", LocalDate.now().toString()) ?: LocalDate.now().toString()
-        return ChronoUnit.DAYS.between(LocalDate.parse(start), LocalDate.now()).toInt().coerceAtLeast(0)
-    }
-
-    private fun refresh() {
-        val d = currentDays()
-        daysText.text = d.toString()
-        bestText.text = "🏆 Best streak   " + max(prefs.getInt("best", 0), d) + " days"
-        totalText.text = "✓ Total check-ins   " + prefs.getInt("total", 0)
-        val canCheck = prefs.getString("last", "") != LocalDate.now().toString()
-        checkButton.isEnabled = canCheck
-        checkButton.text = if (canCheck) "✓  I stayed free today" else "✓  Checked in today"
-    }
-
-    private fun checkIn() {
-        prefs.edit()
-            .putString("last", LocalDate.now().toString())
-            .putInt("total", prefs.getInt("total", 0) + 1)
-            .putInt("best", max(prefs.getInt("best", 0), currentDays()))
-            .apply()
-        refresh()
-    }
-
-    private fun resetStreak() {
-        prefs.edit()
-            .putInt("best", max(prefs.getInt("best", 0), currentDays()))
-            .putString("start", LocalDate.now().toString())
-            .remove("last")
-            .apply()
-        refresh()
-    }
-
-    companion object {
-        fun schedule(context: Context) {
-            val alarm = context.getSystemService(ALARM_SERVICE) as AlarmManager
-            val intent = Intent(context, ReminderReceiver::class.java)
-            val pending = PendingIntent.getBroadcast(
-                context, 830, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val next = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 8)
-                set(Calendar.MINUTE, 30)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-                if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-            }
-            alarm.setInexactRepeating(AlarmManager.RTC_WAKEUP, next.timeInMillis, AlarmManager.INTERVAL_DAY, pending)
-        }
-    }
+class MainActivity:AppCompatActivity(){
+ private lateinit var p:SharedPreferences; private lateinit var root:LinearLayout
+ private val handler=Handler(Looper.getMainLooper()); private val bg=Color.rgb(6,10,24);private val card=Color.rgb(17,25,45);private val muted=Color.rgb(154,164,190)
+ private fun box(color:Int=card,r:Float=28f)=GradientDrawable().apply{setColor(color);cornerRadius=r}
+ private fun txt(s:String,z:Float=16f,c:Int=Color.WHITE,b:Boolean=false)=TextView(this).apply{text=s;textSize=z;setTextColor(c);if(b)setTypeface(typeface,1);setPadding(12,10,12,10)}
+ private fun btn(s:String,color:Int)=Button(this).apply{text=s;setTextColor(Color.WHITE);textSize=16f;background=box(color,32f)}
+ private fun add(v:View,m:Int=10){root.addView(v,LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,m,0,m)})}
+ override fun onCreate(b:Bundle?){super.onCreate(b);p=getSharedPreferences("morynth",MODE_PRIVATE);home();if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.POST_NOTIFICATIONS),7);schedule(this)}
+ private fun shell(title:String){root=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(28,42,28,28);setBackgroundColor(bg)};val sc=ScrollView(this);sc.addView(root);setContentView(sc);add(txt("▲  "+title,26f,Color.WHITE,true),0)}
+ private fun nav(){val r=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL};listOf("Home","Map","Stats","History").forEach{n->r.addView(Button(this).apply{text=n;setTextColor(Color.WHITE);setBackgroundColor(Color.TRANSPARENT);setOnClickListener{when(n){"Home"->home();"Map"->map();"Stats"->stats();else->history()}}},LinearLayout.LayoutParams(0,-2,1f))};add(r,18)}
+ private fun start()=p.getLong("startMs",0L);private fun elapsed()=if(start()>0)System.currentTimeMillis()-start() else 0L;private fun days(ms:Long)=TimeUnit.MILLISECONDS.toDays(ms)
+ private fun fmt(ms:Long):String{val d=days(ms);val hr=TimeUnit.MILLISECONDS.toHours(ms)%24;val mn=TimeUnit.MILLISECONDS.toMinutes(ms)%60;val sc=TimeUnit.MILLISECONDS.toSeconds(ms)%60;return d.toString()+" days  •  "+hr+"h "+mn+"m "+sc+"s"}
+ private fun home(){shell("Morynth");add(txt("Rise beyond yesterday.",14f,muted));val hero=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;background=box(Color.rgb(20,27,55),44f);setPadding(20,30,20,30)};hero.addView(txt("◆",34f,Color.rgb(177,92,255),true).apply{gravity=Gravity.CENTER});val big=txt("",42f,Color.WHITE,true).apply{gravity=Gravity.CENTER};hero.addView(big);hero.addView(txt(if(start()>0)"CURRENT JOURNEY" else "READY WHEN YOU ARE",13f,muted,true).apply{gravity=Gravity.CENTER});add(hero,18);add(txt("🏆  Best  "+days(max(p.getLong("bestMs",0),elapsed()))+" days        ✦  Total  "+days(p.getLong("totalMs",0)+elapsed())+" days",16f,Color.WHITE,true).apply{gravity=Gravity.CENTER;background=box()})
+ if(start()==0L){add(txt("Start the moment you're free. Morynth tracks every second automatically until you choose to end the journey.",15f,muted).apply{background=box();setPadding(24,20,24,20)});add(btn("▶  START MY JOURNEY",Color.rgb(104,61,255)).apply{setOnClickListener{p.edit().putLong("startMs",System.currentTimeMillis()).apply();home()}},18)}else{add(txt("Your timer runs automatically — no daily check-in needed.",14f,muted).apply{gravity=Gravity.CENTER});add(btn("■  END JOURNEY",Color.rgb(235,55,91)).apply{setOnClickListener{endDialog()}},18)}
+ add(txt("Milestones  ✦  1D • 3D • 7D • 14D • 30D • 60D • 90D • 180D • 365D",14f,Color.rgb(194,170,255)).apply{background=box();setPadding(20,18,20,18)});nav();val tick=object:Runnable{override fun run(){if(start()>0){big.text=fmt(elapsed());handler.postDelayed(this,1000)}else big.text="0 days"}};handler.post(tick)}
+ private fun endDialog(){val input=EditText(this).apply{hint="Reason / note (optional)"};AlertDialog.Builder(this).setTitle("End this journey?").setMessage("Your progress will be saved in History.").setView(input).setNegativeButton("Cancel",null).setPositiveButton("End"){_,_->val e=System.currentTimeMillis();val s=start();val d=e-s;val old=p.getString("history","")?:"";val rec=s.toString()+","+e+","+d+","+input.text.toString().replace("|"," ");p.edit().putString("history",if(old.isBlank())rec else rec+"|"+old).putLong("bestMs",max(p.getLong("bestMs",0),d)).putLong("totalMs",p.getLong("totalMs",0)+d).putLong("startMs",0).apply();home()}.show()}
+ private fun map(){shell("Journey Map");add(txt("Every square is one day of your current journey.",14f,muted));val g=GridLayout(this).apply{columnCount=7;background=box();setPadding(18,18,18,18)};val d=days(elapsed()).toInt();for(i in 0 until 84){val active=start()>0&&i<=d;g.addView(TextView(this).apply{text=if(active)"■" else "□";textSize=25f;gravity=Gravity.CENTER;setTextColor(if(active)Color.rgb(42,220,145) else Color.rgb(63,75,103))},GridLayout.LayoutParams().apply{width=0;columnSpec=GridLayout.spec(GridLayout.UNDEFINED,1f)})};add(g,18);add(txt("■ Free day     □ Future day",14f,muted).apply{gravity=Gravity.CENTER});nav()}
+ private fun stats(){shell("Stats");val cur=elapsed();val best=max(p.getLong("bestMs",0),cur);val total=p.getLong("totalMs",0)+cur;val attempts=(p.getString("history","")?:"").split("|").count{it.isNotBlank()}+(if(start()>0)1 else 0);listOf("🔥 Current Journey" to days(cur).toString()+" days","🏆 Longest Journey" to days(best).toString()+" days","📅 Total Free Time" to days(total).toString()+" days","↗ Attempts" to attempts.toString()).forEach{pair->add(txt(pair.first+"\n"+pair.second,20f,Color.WHITE,true).apply{background=box();setPadding(24,18,24,18)})};val ms=listOf(1,3,7,14,30,60,90,180,365);val unlocked=ms.count{days(best)>=it};add(txt("Achievements  "+unlocked+" / 9\n"+ms.joinToString("  •  "){if(days(best)>=it)"◆ "+it else "◇ "+it},15f,Color.rgb(255,195,72),true).apply{background=box();setPadding(20,18,20,18)});nav()}
+ private fun history(){shell("History");if(start()>0)add(txt("● ACTIVE   "+fmt(elapsed()),18f,Color.rgb(42,220,145),true).apply{background=box()});val hist=p.getString("history","")?:"";if(hist.isBlank()&&start()==0L)add(txt("No journeys yet.",16f,muted));val df=SimpleDateFormat("d MMM yyyy • HH:mm",Locale.getDefault());hist.split("|").filter{it.isNotBlank()}.forEach{r->val x=r.split(",",limit=4);if(x.size>=3){val s=x[0].toLongOrNull()?:0;val e=x[1].toLongOrNull()?:0;val d=x[2].toLongOrNull()?:0;val note=x.getOrElse(3){""};add(txt("◆  "+fmt(d)+"\n"+df.format(Date(s))+" → "+df.format(Date(e))+(if(note.isBlank())"" else "\n“"+note+"”"),16f,Color.WHITE,true).apply{background=box();setPadding(20,16,20,16)})}};nav()}
+ companion object{fun schedule(c:Context){val a=c.getSystemService(ALARM_SERVICE) as AlarmManager;val i=Intent(c,ReminderReceiver::class.java);val pi=PendingIntent.getBroadcast(c,830,i,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE);val x=Calendar.getInstance().apply{set(Calendar.HOUR_OF_DAY,8);set(Calendar.MINUTE,30);set(Calendar.SECOND,0);if(timeInMillis<=System.currentTimeMillis())add(Calendar.DAY_OF_YEAR,1)};a.setInexactRepeating(AlarmManager.RTC_WAKEUP,x.timeInMillis,AlarmManager.INTERVAL_DAY,pi)}}
 }
